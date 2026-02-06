@@ -5,6 +5,9 @@ from bike_physics import Bike
 
 pygame.init()
 
+spawn_distance = 0
+SPAWN_GAP = 350   # vertical gap between traffic waves
+
 WIDTH, HEIGHT = 600, 800
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("AirBike")
@@ -27,12 +30,23 @@ CAR_WIDTH, CAR_HEIGHT = 60, 100
 spawn_timer = 0
 
 bike = Bike()
+spawn_car()   # spawn first traffic wave
 
 def spawn_car():
-    lane = random.randint(0, 2)
-    x = LANES[lane]
-    y = -120
-    cars.append([lane, x, y])
+    safe_lane = random.randint(0, 2)
+    lanes_to_spawn = [0, 1, 2]
+    lanes_to_spawn.remove(safe_lane)
+
+    # decide spawn pattern
+    spawn_type = random.choice(["one", "two"])
+
+    if spawn_type == "one":
+        lane = random.choice(lanes_to_spawn)
+        cars.append([lane, LANES[lane], -120])
+
+    if spawn_type == "two":
+        for lane in lanes_to_spawn:
+            cars.append([lane, LANES[lane], -120])
 
 def check_collision():
     for lane, x, y in cars:
@@ -69,11 +83,12 @@ while running:
     # PHYSICS 
     bike.update(gas, brake, ["LEFT","CENTER","RIGHT"][current_lane], dt)
 
-    # spawn traffic
-    spawn_timer += dt
-    if spawn_timer > 1.2:
+    # WAVE SPAWN SYSTEM 
+    spawn_distance += bike.speed * 20 * dt
+
+    if spawn_distance > SPAWN_GAP:
         spawn_car()
-        spawn_timer = 0
+        spawn_distance = 0
 
     # move cars
     for car in cars:
