@@ -2,6 +2,7 @@ import pygame
 import random
 import time
 from bike_physics import Bike
+from controller import CVController
 
 pygame.init()
 
@@ -30,7 +31,7 @@ CAR_WIDTH, CAR_HEIGHT = 60, 100
 spawn_timer = 0
 
 bike = Bike()
-spawn_car()   # spawn first traffic wave
+controller = CVController()
 
 def spawn_car():
     safe_lane = random.randint(0, 2)
@@ -48,6 +49,8 @@ def spawn_car():
         for lane in lanes_to_spawn:
             cars.append([lane, LANES[lane], -120])
 
+spawn_car()   # spawn first traffic wave
+
 def check_collision():
     for lane, x, y in cars:
         if lane == current_lane and abs(y - bike_y) < 80:
@@ -61,11 +64,27 @@ while running:
     dt = clock.tick(60) / 1000
     now = time.time()
 
-    # INPUT 
-    keys = pygame.key.get_pressed()
-    gas = keys[pygame.K_RIGHT]
-    brake = keys[pygame.K_LEFT]
+    # INPUT (CV + KEYBOARD HYBRID)
 
+    # 1) Read CV controller once per frame
+    cv_gas, cv_brake, lane_name = controller.update()
+
+    # 2) Read keyboard (fallback)
+    keys = pygame.key.get_pressed()
+    kb_gas = keys[pygame.K_RIGHT]
+    kb_brake = keys[pygame.K_LEFT]
+
+    # 3) Combine inputs
+    gas = cv_gas or kb_gas
+    brake = cv_brake or kb_brake
+
+    # 4) Lane change from CV (edge-triggered)
+    if lane_name == "LEFT" and current_lane > 0:
+        current_lane -= 1
+    elif lane_name == "RIGHT" and current_lane < 2:
+        current_lane += 1
+
+    # 5) Event loop only for quitting + optional keyboard lane backup
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
